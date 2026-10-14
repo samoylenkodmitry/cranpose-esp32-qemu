@@ -18,6 +18,9 @@
 #include "ui/console.h"
 #include "qemu/error-report.h"
 #include "system/dma.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #define RGB_WARNING 1
 #define RGB_DEBUG   0
@@ -49,6 +52,8 @@ static void update_rgb_surface(ESPRgbState* s){
     surface->flags = QEMU_ALLOCATED_FLAG;
     dpy_gfx_replace_surface(s->con, surface);
 };
+
+static void rgb_update(void* opaque);
 
 static uint64_t esp_rgb_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -142,6 +147,11 @@ static void esp_rgb_write(void *opaque, hwaddr addr,
 
         case A_RGB_UPDATE_STATUS:
             s->update_area = FIELD_EX32(value, RGB_UPDATE_STATUS, ENA) != 0;
+            /* Copy the area now: the guest waits for the flag to clear, and
+             * a display that never refreshes would keep it waiting. */
+            if (s->update_area) {
+                rgb_update(s);
+            }
             break;
 
         case A_RGB_UPDATE_FROM:
@@ -225,6 +235,13 @@ static void rgb_update(void* opaque)
             }
 
             dpy_gfx_update(s->con, s->from_x, s->from_y, width, height);
+#ifdef __EMSCRIPTEN__
+            MAIN_THREAD_ASYNC_EM_ASM({
+                if (Module.onEspRgbFrame) {
+                    Module.onEspRgbFrame(HEAPU8.slice($0, $0 + $1 * $2 * ($3 / 8)), $1, $2, $3);
+                }
+            }, (uint32_t) (uintptr_t) data, s->width, s->height, bpp);
+#endif
         }
 #if RGB_WARNING
         else {
