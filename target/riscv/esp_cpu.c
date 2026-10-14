@@ -17,7 +17,7 @@
 #include "hw/registerfields.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-#include "sysemu/reset.h"
+#include "system/reset.h"
 #include "esp_cpu.h"
 
 #define BIT_SET(reg, bit)   ((reg) & BIT(bit))
@@ -313,13 +313,12 @@ static void esp_cpu_init(Object *obj)
     };
 }
 
-static Property riscv_harts_props[] = {
+static const Property riscv_harts_props[] = {
     DEFINE_PROP_UINT32("hartid-base", EspRISCVCPU, hartid_base, 0),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 
-static void esp_cpu_class_init(ObjectClass *klass, void *data)
+static void esp_cpu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     EspRISCVCPUClass *cpuclass = ESP_CPU_CLASS(klass);

@@ -35,13 +35,14 @@
 #include "hw/misc/ssi_psram.h"
 #include "core-esp32s3/core-isa.h"
 #include "qemu/datadir.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/reset.h"
-#include "sysemu/cpus.h"
-#include "sysemu/runstate.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/block-backend.h"
-#include "exec/exec-all.h"
+#include "system/system.h"
+#include "system/reset.h"
+#include "system/cpus.h"
+#include "system/runstate.h"
+#include "system/blockdev.h"
+#include "system/block-backend.h"
+#include "exec/translation-block.h"
+#include "exec/target_page.h"
 #include "net/net.h"
 #include "elf.h"
 
@@ -69,6 +70,7 @@
 
 #include "hw/misc/esp32c3_jtag.h"
 #include "hw/display/esp_rgb.h"
+#include "exec/watchpoint.h"
 
 #define TYPE_ESP32S3_SOC "xtensa.esp32s3"
 #define ESP32S3_SOC(obj) OBJECT_CHECK(Esp32s3SocState, (obj), TYPE_ESP32S3_SOC)
@@ -553,16 +555,11 @@ static void esp32s3_soc_init(Object *obj)
     object_initialize_child(obj, "sdmmc", &s->sdmmc, TYPE_DWC_SDMMC);
 }
 
-static Property esp32s3_soc_properties[] = {
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void esp32s3_soc_class_init(ObjectClass *klass, void *data)
+static void esp32s3_soc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = esp32s3_soc_realize;
-    device_class_set_props(dc, esp32s3_soc_properties);
 }
 
 static const TypeInfo esp32s3_soc_info = {
@@ -975,7 +972,7 @@ static ram_addr_t esp32s3_fixup_ram_size(ram_addr_t requested_size)
 }
 
 /* Initialize machine type */
-static void esp32s3_machine_class_init(ObjectClass *oc, void *data)
+static void esp32s3_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     mc->desc = "Espressif ESP32S3 machine";
