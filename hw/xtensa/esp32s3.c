@@ -18,6 +18,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "hw/block/flash.h"
 #include "hw/xtensa/xtensa_memory.h"
 #include "hw/misc/unimp.h"
 #include "hw/irq.h"
@@ -250,7 +251,7 @@ static void esp32s3_soc_add_periph_device(MemoryRegion *dest, void* dev, hwaddr 
 
 #define MB (1024*1024)
 
-static void esp32s3_init_spi_flash(Esp32s3SocState *ms, BlockBackend* blk)
+static DeviceState *esp32s3_init_spi_flash(Esp32s3SocState *ms, BlockBackend* blk)
 {
     DeviceState *spi_master = DEVICE(&ms->spi1);
     BusState* spi_bus = qdev_get_child_bus(spi_master, "spi");
@@ -272,7 +273,7 @@ static void esp32s3_init_spi_flash(Esp32s3SocState *ms, BlockBackend* blk)
             break;
         default:
             error_report("Drive size error: only 2, 4, 8, and 16MB images are supported");
-            return;
+            return NULL;
     }
 
     /* Create the SPI flash model */
@@ -283,6 +284,7 @@ static void esp32s3_init_spi_flash(Esp32s3SocState *ms, BlockBackend* blk)
     qdev_realize(flash_dev, spi_bus, &error_fatal);
     qdev_connect_gpio_out_named(spi_master, SSI_GPIO_CS, 0,
                                 qdev_get_gpio_in_named(flash_dev, SSI_GPIO_CS, 0));
+    return flash_dev;
 }
 
 static void esp32s3_machine_init_psram(Esp32s3SocState *ms, uint32_t size_mbytes)
@@ -689,7 +691,10 @@ static void esp32s3_machine_init(MachineState *machine)
         MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&ss->spi1), 0);
         memory_region_add_subregion_overlap(sys_mem, DR_REG_SPI1_BASE, mr, 0);
         if (blk) {
-            esp32s3_init_spi_flash(ss, blk);
+            DeviceState *flash = esp32s3_init_spi_flash(ss, blk);
+            if (flash != NULL) {
+                ss->cache.flash_storage = m25p80_get_storage(flash);
+            }
         }
         if (machine->ram_size > 0) {
             esp32s3_machine_init_psram(ss, (uint32_t) (machine->ram_size / MiB));

@@ -1914,3 +1914,8 @@ BlockBackend *m25p80_get_blk(DeviceState *dev)
 {
     return M25P80(dev)->blk;
 }
+
+uint8_t *m25p80_get_storage(DeviceState *dev)
+{
+    return M25P80(dev)->storage;
+}

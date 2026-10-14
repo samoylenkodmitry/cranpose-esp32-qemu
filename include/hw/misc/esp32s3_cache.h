@@ -115,6 +115,7 @@ typedef struct {
     uint32_t regs[ESP32S3_CACHE_REG_COUNT];
 
     ESP32S3XtsAesState *xts_aes;
+    uint8_t *flash_storage;
     /* Define the MMU itself as an array, it shall be accessible from address ESP32S3_MMU_TABLE */
     ESP32S3MMUEntry mmu[ESP32S3_MMU_TABLE_ENTRY_COUNT];
 } ESP32S3CacheState;

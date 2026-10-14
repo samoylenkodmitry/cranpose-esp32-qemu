@@ -106,7 +106,14 @@ static inline void esp32s3_write_mmu_value(ESP32S3CacheState *s, hwaddr reg_addr
         if (!e.invalid) {
             if (e.type == ESP32S3_MMU_TYPE_FLASH && s->flash_blk != NULL) {
                 uint8_t* cache_data = ((uint8_t*) memory_region_get_ram_ptr(&s->flash_mr)) + physical_address;
-                blk_pread(s->flash_blk, physical_address, ESP32S3_PAGE_SIZE, cache_data, 0);
+                /* Copy from the flash model rather than reading the drive: this
+                 * runs on the vCPU thread, where a coroutine of the block layer
+                 * cannot run in browser builds. */
+                if (s->flash_storage != NULL) {
+                    memcpy(cache_data, s->flash_storage + physical_address, ESP32S3_PAGE_SIZE);
+                } else {
+                    blk_pread(s->flash_blk, physical_address, ESP32S3_PAGE_SIZE, cache_data, 0);
+                }
 
                 if (xts_aes_class && xts_aes_class->is_flash_enc_enabled(s->xts_aes)) {
                     xts_aes_class->decrypt(s->xts_aes, physical_address, cache_data, ESP32S3_PAGE_SIZE);
