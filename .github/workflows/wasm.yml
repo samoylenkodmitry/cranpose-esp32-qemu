@@ -27,7 +27,7 @@ jobs:
       - name: Build qemu-system-xtensa
         run: |
           mkdir build
-          docker run --rm -v "$PWD:/qemu:ro" -v "$PWD/build:/build" -w /build emsdk-wasm64-32bit-cross bash -c '
+          docker run --rm -v "$PWD:/qemu" -v "$PWD/build:/build" -w /build emsdk-wasm64-32bit-cross bash -c '
             set -e
             emconfigure /qemu/configure --disable-docs --static --cpu=wasm64 \
               --enable-wasm64-32bit-address-limit --disable-tools --target-list=xtensa-softmmu \
