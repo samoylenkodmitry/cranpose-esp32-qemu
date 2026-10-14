@@ -1289,9 +1289,11 @@ if not get_option('slirp').auto() or have_system
     slirp_cflags += ['-DLIBSLIRP_STATIC'] 
   endif
 
-  slirp = declare_dependency(dependencies: [slirp_dep],
-                          compile_args: slirp_cflags,
-                          version: slirp_dep.version())
+  if slirp_dep.found()
+    slirp = declare_dependency(dependencies: [slirp_dep],
+                            compile_args: slirp_cflags,
+                            version: slirp_dep.version())
+  endif
 
   # slirp < 4.7 is incompatible with CFI support in QEMU.  This is because
   # it passes function pointers within libslirp as callbacks for timers.
