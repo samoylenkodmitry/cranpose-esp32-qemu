@@ -1,0 +1,56 @@
+name: wasm
+
+# A version tag builds qemu-system-xtensa for the browser: WebAssembly with the
+# Wasm TCG backend, the ESP32-S3 board only. The release of the tag carries the
+# emulator and the chip's ROM.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Build the Emscripten container
+        run: |
+          docker build -t emsdk-wasm64-32bit-cross \
+            --build-arg TARGET_CPU=wasm64 --build-arg WASM64_MEMORY64=2 \
+            -f tests/docker/dockerfiles/emsdk-wasm-cross.docker tests/docker/dockerfiles
+
+      - name: Build qemu-system-xtensa
+        run: |
+          mkdir build
+          docker run --rm -v "$PWD:/qemu:ro" -v "$PWD/build:/build" -w /build emsdk-wasm64-32bit-cross bash -c '
+            set -e
+            emconfigure /qemu/configure --disable-docs --static --cpu=wasm64 \
+              --enable-wasm64-32bit-address-limit --disable-tools --target-list=xtensa-softmmu \
+              --disable-gcrypt --disable-fdt --with-devices-xtensa=esp32s3
+            emmake make -j"$(nproc)"'
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp build/qemu-system-xtensa.js build/qemu-system-xtensa.wasm pc-bios/esp32s3_rev0_rom.bin dist/
+          (cd dist && zip -q ../qemu-esp32s3-wasm.zip ./*)
+          sha256sum qemu-esp32s3-wasm.zip > qemu-esp32s3-wasm.zip.sha256
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qemu-esp32s3-wasm
+          path: qemu-esp32s3-wasm.zip*
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" qemu-esp32s3-wasm.zip qemu-esp32s3-wasm.zip.sha256 \
+            --title "$GITHUB_REF_NAME" \
+            --notes "qemu-system-xtensa for the browser with the ESP32-S3 board. Source: this tag."
