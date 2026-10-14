@@ -84,7 +84,7 @@ static void esp32s3_mmu_invalidate_page(ESP32S3CacheState *s, hwaddr virt_addr, 
 
 static inline void esp32s3_write_mmu_value(ESP32S3CacheState *s, hwaddr reg_addr, uint32_t value)
 {
-    ESP32S3XtsAesClass *xts_aes_class = ESP32S3_XTS_AES_GET_CLASS(s->xts_aes);
+    ESP32S3XtsAesClass *xts_aes_class = s->xts_aes ? ESP32S3_XTS_AES_GET_CLASS(s->xts_aes) : NULL;
     /* Make the assumption that the address is aligned on sizeof(uint32_t) */
     const uint32_t index = reg_addr / sizeof(uint32_t);
     /* Reserved bits shall always be 0 */
@@ -108,7 +108,7 @@ static inline void esp32s3_write_mmu_value(ESP32S3CacheState *s, hwaddr reg_addr
                 uint8_t* cache_data = ((uint8_t*) memory_region_get_ram_ptr(&s->flash_mr)) + physical_address;
                 blk_pread(s->flash_blk, physical_address, ESP32S3_PAGE_SIZE, cache_data, 0);
 
-                if (xts_aes_class->is_flash_enc_enabled(s->xts_aes)) {
+                if (xts_aes_class && xts_aes_class->is_flash_enc_enabled(s->xts_aes)) {
                     xts_aes_class->decrypt(s->xts_aes, physical_address, cache_data, ESP32S3_PAGE_SIZE);
                 }
             }
@@ -297,9 +297,11 @@ static void esp32s3_cache_realize(DeviceState *dev, Error **errp)
     ESP32S3CacheState *s = ESP32S3_CACHE(dev);
 
     /* Make sure XTS_AES was set or issue an error */
+#ifdef CONFIG_GCRYPT
     if (s->xts_aes == NULL) {
         error_report("[CACHE] XTS_AES controller must be set!");
     }
+#endif
 
     if (s->flash_blk != NULL) {
         /* There is no way to have a MemoryRegion bound to a block device, nor a protable way to have a MemoryRegion

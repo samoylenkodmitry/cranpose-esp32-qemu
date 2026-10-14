@@ -643,13 +643,21 @@ static void esp32s3_machine_init(MachineState *machine)
 
     object_initialize_child(OBJECT(ss), "gdma", &ss->gdma, TYPE_ESP32S3_GDMA);
     object_initialize_child(OBJECT(ss), "sha", &ss->sha, TYPE_ESP32S3_SHA);
+#ifdef CONFIG_GCRYPT
     object_initialize_child(OBJECT(ss), "aes", &ss->aes, TYPE_ESP32S3_AES);
+#endif
+#ifdef CONFIG_GCRYPT
     object_initialize_child(OBJECT(ss), "rsa", &ss->rsa, TYPE_ESP32S3_RSA);
+#endif
     object_initialize_child(OBJECT(ss), "hmac", &ss->hmac, TYPE_ESP32S3_HMAC);
+#ifdef CONFIG_GCRYPT
     object_initialize_child(OBJECT(ss), "ds", &ss->ds, TYPE_ESP32S3_DS);
+#endif
     object_initialize_child(OBJECT(ss), "pms", &ss->pms, TYPE_ESP32S3_PMS);
 
+#ifdef CONFIG_GCRYPT
     object_initialize_child(OBJECT(ss), "xts_aes", &ss->xts_aes, TYPE_ESP32S3_XTS_AES);
+#endif
     object_initialize_child(OBJECT(ss), "timg0", &ss->timg[0], TYPE_ESP32S3_TIMG);
     object_initialize_child(OBJECT(ss), "timg1", &ss->timg[1], TYPE_ESP32S3_TIMG);
     object_initialize_child(OBJECT(ss), "systimer", &ss->systimer, TYPE_ESP32S3_SYSTIMER);
@@ -674,7 +682,9 @@ static void esp32s3_machine_init(MachineState *machine)
 
     /* SPI1 controller (SPI Flash) */
     {
+#ifdef CONFIG_GCRYPT
         ss->spi1.xts_aes = &ss->xts_aes;
+#endif
         sysbus_realize(SYS_BUS_DEVICE(&ss->spi1), &error_fatal);
         MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&ss->spi1), 0);
         memory_region_add_subregion_overlap(sys_mem, DR_REG_SPI1_BASE, mr, 0);
@@ -694,7 +704,9 @@ static void esp32s3_machine_init(MachineState *machine)
         if (ss->psram) {
             ss->cache.psram = ss->psram;
         }
+#ifdef CONFIG_GCRYPT
         ss->cache.xts_aes = &ss->xts_aes;
+#endif
         sysbus_realize(SYS_BUS_DEVICE(&ss->cache), &error_fatal);
         MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&ss->cache), 0);
         memory_region_add_subregion_overlap(sys_mem, DR_REG_EXTMEM_BASE, mr, 0);
@@ -804,6 +816,7 @@ static void esp32s3_machine_init(MachineState *machine)
                            qdev_get_gpio_in(intmatrix_dev, ETS_SHA_INTR_SOURCE));
     }
 
+#ifdef CONFIG_GCRYPT
     /* AES realization */
     {
         ss->aes.parent.gdma = ESP_GDMA(&ss->gdma);
@@ -821,6 +834,8 @@ static void esp32s3_machine_init(MachineState *machine)
         sysbus_connect_irq(SYS_BUS_DEVICE(&ss->rsa), 0,
                            qdev_get_gpio_in(intmatrix_dev, ETS_RSA_INTR_SOURCE));
     }
+#endif
+
     /* PMS realization */
     {
         sysbus_realize(SYS_BUS_DEVICE(&ss->pms), &error_fatal);
@@ -837,6 +852,7 @@ static void esp32s3_machine_init(MachineState *machine)
     }
 
 
+#ifdef CONFIG_GCRYPT
     /* Digital Signature realization */
     {
         ss->ds.parent.hmac = ESP_HMAC(&ss->hmac);
@@ -855,6 +871,8 @@ static void esp32s3_machine_init(MachineState *machine)
         MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&ss->xts_aes), 0);
         memory_region_add_subregion_overlap(sys_mem, DR_REG_AES_XTS_BASE, mr, 0);
     }
+#endif
+
 
     /* RGB display realization */
     {
